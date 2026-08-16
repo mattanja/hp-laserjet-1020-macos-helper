@@ -1,0 +1,119 @@
+# HP LaserJet 1020 macOS Helper
+
+A small native macOS utility that prepares an HP LaserJet 1020 for printing with one click—without a permanent background process or repeated Terminal commands.
+
+The LaserJet 1020 stores its operating firmware in volatile memory. After the printer loses power, the firmware must be uploaded again before normal print jobs can run. This project turns that manual Terminal step into a focused macOS app that validates the USB device, CUPS queue, and firmware before performing the upload.
+
+## What this project adds
+
+- A native ARM64 macOS app with clear success and failure dialogs
+- No polling, login item, daemon, network request, or persistent process
+- Exact matching for the `HP LaserJet 1020` USB product
+- Exact targeting of the `HP_LaserJet_1020` CUPS queue
+- A LaserJet 1020-only installer instead of installing drivers for 89 models
+- A corrected PPD pipeline that points to the native `rastertozjs` CUPS filter
+- Backups before replacing any existing filter, PPD, or firmware file
+- Compilation as the normal user, with `sudo` limited to final system-file installation
+
+## Tested configuration
+
+- MacBook Air with Apple Silicon (M3)
+- macOS 26.5.2
+- HP LaserJet 1020 connected over USB
+- Native ARM64 `rastertozjs` filter
+- Physical CUPS test page completed successfully
+
+The upstream project currently lists the HP LaserJet 1020 as untested, so this repository documents a real-hardware validation of that path.
+
+## How it works
+
+```text
+Switch on printer
+       │
+       ▼
+Open “Prepare HP LaserJet”
+       │
+       ├── Confirm USB device
+       ├── Confirm CUPS queue
+       ├── Confirm local firmware file
+       └── Upload firmware as one raw CUPS job
+                 │
+                 ▼
+          Print normally from Word,
+          Preview, Chrome, and other apps
+```
+
+The app exits after showing the result. It consumes no CPU or memory afterward.
+
+## Requirements
+
+- Apple Silicon Mac running macOS 13 or newer
+- Xcode Command Line Tools
+- HP LaserJet 1020 connected over USB
+- The [`faradayfury/printer-all`](https://github.com/faradayfury/printer-all) source checkout
+
+This repository intentionally does **not** redistribute HP firmware or upstream driver source.
+
+## Install the LaserJet 1020 driver
+
+Clone the upstream driver project separately, then run this repository's narrowed installer:
+
+```bash
+git clone https://github.com/faradayfury/printer-all.git
+./scripts/install-driver.sh /path/to/printer-all
+```
+
+The installer builds and installs only:
+
+- `rastertozjs`
+- `HP-LaserJet_1020-printer-all.ppd`
+- `sihp1020.dl`
+
+It does not restart CUPS, send firmware, change security settings, or download anything.
+
+Next, add the USB printer in **System Settings → Printers & Scanners** and select **HP LaserJet 1020 (printer-all native rastertozjs)** as its software.
+
+## Build the app
+
+```bash
+./scripts/build-app.sh
+```
+
+The app will be created at:
+
+```text
+build/Prepare HP LaserJet.app
+```
+
+Move it to the Desktop or Applications folder. After each printer power cycle, wait a few seconds and open the app once. When it reports **Printer ready**, print normally.
+
+## Privacy and security
+
+- No network access
+- No document access
+- No telemetry
+- No administrator privileges in the app
+- No background process or startup item
+- Fixed printer queue and firmware paths
+- Locally compiled and ad-hoc signed
+
+Review the source before building. The helper runs only the macOS `ioreg`, `lpstat`, and `lp` utilities with fixed arguments.
+
+## Project structure
+
+```text
+Sources/PrepareHPLaserJet.m  Native macOS helper source
+Resources/Info.plist         Application metadata
+scripts/build-app.sh         Reproducible local build
+scripts/install-driver.sh    LaserJet 1020-only driver installer
+```
+
+## Attribution
+
+The printing filter and firmware workflow depend on [`printer-all`](https://github.com/faradayfury/printer-all), licensed under GPL-2.0-or-later. That project is based on Rick Richardson's `foo2zjs` project. HP firmware images remain copyright HP.
+
+This repository contains an independent macOS helper and installation wrapper; it does not include the upstream GPL driver source or HP firmware. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+The original code in this repository is available under the [MIT License](LICENSE). Upstream dependencies retain their respective licenses and copyrights.
