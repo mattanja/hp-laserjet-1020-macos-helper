@@ -92,14 +92,20 @@ printf '%s\n' "[2/4] Preparing only the LaserJet 1020 firmware..."
 printf '%s\n' "[3/4] Preparing a PPD that uses the native rastertozjs filter..."
 sed \
     -e 's#^\*cupsFilter:.*#*cupsFilter: "application/vnd.cups-raster 0 rastertozjs"#' \
-    -e 's#^\*ShortNickName:.*#*ShortNickName: "HP LaserJet 1020 (printer-all native)"#' \
+    -e 's#^\*ShortNickName:.*#*ShortNickName: "HP LaserJet 1020 native"#' \
     -e 's#^\*NickName:.*#*NickName: "HP LaserJet 1020 (printer-all native rastertozjs)"#' \
+    -e 's#^\*DefaultResolution:.*#*DefaultResolution: 600x600dpi#' \
+    -e 's#^\*Resolution 600x600dpi/.*#*Resolution 600x600dpi/600x600 dpi: "<</HWResolution[600 600]>>setpagedevice"#' \
+    -e 's#^\*Resolution 1200x600dpi/.*#*Resolution 1200x600dpi/1200x600 dpi: "<</HWResolution[1200 600]>>setpagedevice"#' \
     -e '/^\*FoomaticRIPCommandLine:/d' \
     "$SOURCE_PPD" > "$BUILD_DIR/$INSTALLED_PPD"
 
 grep -Fq '*cupsFilter: "application/vnd.cups-raster 0 rastertozjs"' \
     "$BUILD_DIR/$INSTALLED_PPD" \
     || fail "The prepared PPD does not reference rastertozjs."
+grep -Fq '*Resolution 600x600dpi/600x600 dpi: "<</HWResolution[600 600]>>setpagedevice"' \
+    "$BUILD_DIR/$INSTALLED_PPD" \
+    || fail "The prepared PPD does not contain the macOS-compatible resolution instruction."
 
 printf '%s\n' "[4/4] Ready to install three files. sudo is required for this step."
 printf '%s\n' "  $FILTER_DIR/$FILTER_NAME"
