@@ -12,7 +12,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build app
-        run: ./scripts/build-app.sh
-      - name: Verify app bundle
-        run: codesign --verify --deep --strict --verbose=2 "build/Prepare HP LaserJet.app"
+      - name: Build and stage the complete standalone setup
+        run: ./setup.sh --stage-only "$RUNNER_TEMP/hp1020-stage"
+      - name: Verify staged filter and app
+        run: |
+          file "$RUNNER_TEMP/hp1020-stage/driver-root/usr/libexec/cups/filter/rastertozjs" | grep arm64
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/hp1020-stage/Desktop/Prepare HP LaserJet.app"

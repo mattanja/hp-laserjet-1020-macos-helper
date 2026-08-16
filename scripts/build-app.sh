@@ -4,7 +4,7 @@ set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 APP_NAME="Prepare HP LaserJet.app"
-BUILD_ROOT="$PROJECT_DIR/build"
+BUILD_ROOT=${BUILD_ROOT:-"$PROJECT_DIR/build"}
 APP_DIR="$BUILD_ROOT/$APP_NAME"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 
