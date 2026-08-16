@@ -122,8 +122,11 @@ cp "$SOURCE_PPD" "$BUILD_DIR/$INSTALLED_PPD"
 /usr/bin/grep -Fq '*Resolution 600x600dpi/600x600 dpi: "<</HWResolution[600 600]>>setpagedevice"' \
     "$BUILD_DIR/$INSTALLED_PPD" \
     || fail "The bundled PPD is missing the macOS resolution fix."
-/usr/bin/cupstestppd -W none "$BUILD_DIR/$INSTALLED_PPD" >/dev/null \
-    || fail "The bundled PPD failed CUPS validation."
+PPD_CHECK_LOG="$BUILD_DIR/cupstestppd.log"
+if ! /usr/bin/cupstestppd -W none "$BUILD_DIR/$INSTALLED_PPD" >"$PPD_CHECK_LOG" 2>&1; then
+    /bin/cat "$PPD_CHECK_LOG" >&2
+    fail "The bundled PPD failed CUPS validation."
+fi
 
 /usr/bin/codesign --force --sign - "$BUILD_DIR/$FILTER_NAME"
 
