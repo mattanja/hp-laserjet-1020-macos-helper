@@ -123,7 +123,9 @@ cp "$SOURCE_PPD" "$BUILD_DIR/$INSTALLED_PPD"
     "$BUILD_DIR/$INSTALLED_PPD" \
     || fail "The bundled PPD is missing the macOS resolution fix."
 PPD_CHECK_LOG="$BUILD_DIR/cupstestppd.log"
-if ! /usr/bin/cupstestppd -W none "$BUILD_DIR/$INSTALLED_PPD" >"$PPD_CHECK_LOG" 2>&1; then
+# The filter is still in the build directory at this point, so ignore only the
+# installed-filter presence check while keeping all PPD syntax checks enabled.
+if ! /usr/bin/cupstestppd -I filters -W none "$BUILD_DIR/$INSTALLED_PPD" >"$PPD_CHECK_LOG" 2>&1; then
     /bin/cat "$PPD_CHECK_LOG" >&2
     fail "The bundled PPD failed CUPS validation."
 fi
