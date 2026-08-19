@@ -52,7 +52,7 @@
 *Throughput:	"1"
 *LandscapeOrientation: Plus90
 *TTRasterizer:	Type42
-*1284DeviceID: "MFG:Hewlett-Packard;MDL:HP LaserJet 1020;CMD:ACL;DES:HP LaserJet 1020;DRV:Dfoo2zjs-z1,R1,M0,TF;"
+*1284DeviceID: "MFG:Hewlett-Packard;MDL:HP LaserJet 1020;CMD:PDF,PWG,URF,JPEG;CLS:PRINTER;DES:HP LaserJet 1020;"
 
 *driverName foo2zjs-z1/foo2zjs-z1: ""
 *driverType F/Filter: ""

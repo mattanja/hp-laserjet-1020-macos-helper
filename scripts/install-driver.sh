@@ -73,6 +73,8 @@ for required in \
  "$FOO2ZJS_DIR/zjs.h" \
  "$FOO2ZJS_DIR/arm2hpdl.c" \
  "$PROJECT_DIR/backend/hp1020x.c" \
+ "$PROJECT_DIR/scripts/advertise-ipp.sh" \
+ "$PROJECT_DIR/launchd/com.hp1020.ipp-advertise.plist" \
  "$SOURCE_PPD"
 do
  [ -f "$required" ] || fail "Required repository file is missing: $required"
@@ -227,12 +229,33 @@ sudo /usr/sbin/lpadmin \
  -P "$PPD_DIR/$INSTALLED_PPD" \
  -o PageSize=A4 \
  -o Resolution=600x600dpi \
- -o printer-is-shared=false \
+ -o printer-is-shared=true \
  -D "HP LaserJet 1020" \
  -L "USB (native ZJS)" \
  -E
 sudo /usr/sbin/cupsenable "$QUEUE_NAME"
 sudo /usr/sbin/cupsaccept "$QUEUE_NAME"
+sudo /usr/sbin/cupsctl --share-printers
+# Drop CUPS Bonjour (_ipps + TLS=1.2 with a self-signed cert whose CN is
+# the router hostname, not *.local). Android Mopria / HP Print Service fail
+# that handshake; advertise-ipp.sh replaces it.
+sudo /usr/sbin/cupsctl BrowseLocalProtocols=none || \
+ sudo /usr/sbin/cupsctl BrowseLocalProtocols= || true
+sudo launchctl kickstart -k system/org.cups.cupsd
+
+# CUPS's own Bonjour ads include _ipps + TLS=1.2 with a self-signed
+# certificate. Android Mopria / HP Print Service fail that handshake.
+# Replace them with a plaintext IPP + AirPrint + Mopria advertisement.
+sudo cp "$PROJECT_DIR/scripts/advertise-ipp.sh" "$PRINTER_RES_DIR/advertise-ipp.sh"
+sudo chown root:wheel "$PRINTER_RES_DIR/advertise-ipp.sh"
+sudo chmod 755 "$PRINTER_RES_DIR/advertise-ipp.sh"
+sudo cp "$PROJECT_DIR/launchd/com.hp1020.ipp-advertise.plist" \
+ /Library/LaunchDaemons/com.hp1020.ipp-advertise.plist
+sudo chown root:wheel /Library/LaunchDaemons/com.hp1020.ipp-advertise.plist
+sudo chmod 644 /Library/LaunchDaemons/com.hp1020.ipp-advertise.plist
+sudo launchctl bootout system/com.hp1020.ipp-advertise 2>/dev/null || true
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.hp1020.ipp-advertise.plist
+sudo launchctl enable system/com.hp1020.ipp-advertise 2>/dev/null || true
 
 printf '%s\n' "[5/5] Uploading firmware for the current printer power cycle..."
 # The IOKit backend prepends firmware on the first job after a USB reconnect.

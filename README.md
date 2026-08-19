@@ -36,6 +36,7 @@ After setup, print from any app with Cmd-P to **HP LaserJet 1020**. Firmware is 
 - Generates the printer firmware locally
 - Validates and installs the corrected LaserJet 1020 PPD
 - Creates or repairs the `HP_LaserJet_1020` CUPS queue on `hp1020x:/`
+- Shares the queue on the LAN and advertises it for IPP / AirPrint / Mopria
 - Sets A4 and true 600×600 dpi as the defaults
 - Builds and ad-hoc signs the native Desktop helper
 - Uploads firmware once for the current printer power cycle
@@ -57,6 +58,8 @@ Sources/PrepareHPLaserJet.m      Native one-click macOS helper
 Resources/Info.plist             App metadata
 scripts/build-app.sh             Reproducible app build
 scripts/install-driver.sh        Standalone driver and queue installer
+scripts/advertise-ipp.sh         IPP / AirPrint / Mopria Bonjour publisher
+launchd/com.hp1020.ipp-advertise.plist
 setup.sh                         Complete setup entry point
 install.sh                       Alias for setup.sh
 uninstall.sh                     Removes queue, filter, backend, and firmware
@@ -75,6 +78,14 @@ HP firmware is not committed to this repository. During setup, the installer dow
 If the download changes or is corrupted, setup stops before requesting administrator access or installing anything.
 
 After install, `hp1020x` uploads that firmware again when the USB session changes (printer power cycle). USB map: `sudo /usr/libexec/cups/backend/hp1020x probe`.
+
+## Android / Mopria / HP Print Service
+
+macOS Printer Sharing advertises `_ipps._tcp` with `TLS=1.2`, but CUPS's certificate is self-signed for the Mac's router hostname, not `*.local`. Android then fails the TLS handshake.
+
+Setup turns off CUPS's own Bonjour ads and registers a plaintext IPP service (`HP LaserJet 1020._ipp._tcp`) with `mopria-certified=1.3` and AirPrint `URF` keys. IPP itself stays on port 631 (`Allow @LOCAL`).
+
+On the phone, prefer **Mopria Print Service** (or Android's built-in default print service) on the same Wi-Fi as the Mac. HP Print Service often probes HP printers over SNMP, which CUPS does not answer. Manual URL if needed: `ipp://<mac-hostname>.local:631/printers/HP_LaserJet_1020`.
 
 ## Resolution correction
 
@@ -106,11 +117,11 @@ This downloads and verifies the firmware, builds the filter, backend, and app, v
 
 ## Tested configuration
 
-- MacBook Air with Apple Silicon (M3)
-- macOS 26.5.2
+- Apple Silicon Mac
+- macOS 26
 - HP LaserJet 1020 connected over USB
 - Native ARM64 `rastertozjs` filter and `hp1020x` IOKit backend
-- Microsoft Word documents and the physical CUPS test page at normal A4 scale
+- Documents and the CUPS test page at normal A4 scale
 
 ## Privacy and security
 

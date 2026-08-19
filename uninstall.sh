@@ -7,6 +7,11 @@ say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 say "Removing printer queue..."
 lpadmin -x HP_LaserJet_1020 2>/dev/null || true
 
+say "Removing IPP/Mopria advertisement..."
+sudo launchctl bootout system/com.hp1020.ipp-advertise 2>/dev/null || true
+sudo rm -f /Library/LaunchDaemons/com.hp1020.ipp-advertise.plist \
+    /var/log/hp1020-ipp-advertise.log
+
 say "Removing native filter, IOKit backend, PPD, and firmware (needs sudo)..."
 sudo rm -f \
     /usr/libexec/cups/filter/rastertozjs \
