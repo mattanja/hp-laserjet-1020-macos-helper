@@ -54,6 +54,7 @@ fi
 "$DESKTOP_APP/Contents/MacOS/PrepareHPLaserJet" --self-test
 
 printf '\n%s\n' "Complete setup finished."
-printf '%s\n' "The one-click app is on your Desktop: Prepare HP LaserJet.app"
-printf '%s\n' "After each printer power cycle, open that app once before printing."
+printf '%s\n' "Print from any app with Cmd-P to HP LaserJet 1020."
+printf '%s\n' "Firmware uploads automatically after a power cycle."
+printf '%s\n' "Optional fallback on the Desktop: Prepare HP LaserJet.app"
 

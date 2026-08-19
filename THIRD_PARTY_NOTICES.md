@@ -19,6 +19,14 @@ Copyright and license notices in the vendored source remain intact. The applicab
 
 `printer-all` documents its filters as rewrites based on `foo2zjs`.
 
+## hp-laser-1008a-macos
+
+- Project: <https://github.com/Kuberwastaken/hp-laser-1008a-macos>
+- Purpose: Native IOKit CUPS USB backend pattern (root Seize, classic printer-class alt setting)
+- License: MIT
+
+`backend/hp1020x.c` is adapted from that project's `daemon/hpl1008-usbd.c`. It matches only HP LaserJet 1020 (`0x03F0:0x2B17`) and adds firmware upload after USB reconnect.
+
 ## HP firmware
 
 Firmware images used by the upstream project are copyright HP. This repository does not include or redistribute those images.

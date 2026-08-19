@@ -11,12 +11,14 @@ SOURCE_PPD="$DRIVER_DIR/PPD/HP-LaserJet_1020.ppd"
 
 FILTER_NAME="rastertozjs"
 FILTER_DIR="/usr/libexec/cups/filter"
+BACKEND_NAME="hp1020x"
+BACKEND_DIR="/usr/libexec/cups/backend"
 PPD_DIR="/Library/Printers/PPDs/Contents/Resources"
 FIRMWARE_DIR="/usr/local/share/foo2zjs/firmware"
 INSTALLED_PPD="HP-LaserJet_1020-printer-all.ppd"
 QUEUE_NAME="HP_LaserJet_1020"
 USB_PRODUCT='"USB Product Name" = "HP LaserJet 1020"'
-DEFAULT_DEVICE_URI="usb://Hewlett-Packard/HP%20LaserJet%201020"
+DEFAULT_DEVICE_URI="hp1020x:/"
 
 # Firmware is fetched from an audited, immutable printer-all commit. It is not
 # redistributed here because the upstream project identifies it as copyright HP.
@@ -63,16 +65,17 @@ if [ "$MODE" = "install" ]; then
 fi
 
 for required in \
-    "$SOURCE_DIR/rastertozjs.c" \
-    "$FOO2ZJS_DIR/jbig.c" \
-    "$FOO2ZJS_DIR/jbig_ar.c" \
-    "$FOO2ZJS_DIR/jbig.h" \
-    "$FOO2ZJS_DIR/jbig_ar.h" \
-    "$FOO2ZJS_DIR/zjs.h" \
-    "$FOO2ZJS_DIR/arm2hpdl.c" \
-    "$SOURCE_PPD"
+ "$SOURCE_DIR/rastertozjs.c" \
+ "$FOO2ZJS_DIR/jbig.c" \
+ "$FOO2ZJS_DIR/jbig_ar.c" \
+ "$FOO2ZJS_DIR/jbig.h" \
+ "$FOO2ZJS_DIR/jbig_ar.h" \
+ "$FOO2ZJS_DIR/zjs.h" \
+ "$FOO2ZJS_DIR/arm2hpdl.c" \
+ "$PROJECT_DIR/backend/hp1020x.c" \
+ "$SOURCE_PPD"
 do
-    [ -f "$required" ] || fail "Required repository file is missing: $required"
+ [ -f "$required" ] || fail "Required repository file is missing: $required"
 done
 
 CLANG=$(xcrun --find clang) || fail "clang was not found. Install Xcode Command Line Tools."
@@ -98,15 +101,26 @@ actual_sha=$(/usr/bin/shasum -a 256 "$BUILD_DIR/sihp1020.img" | /usr/bin/awk '{p
 [ "$actual_sha" = "$FIRMWARE_SHA256" ] \
     || fail "Firmware checksum verification failed; nothing was installed."
 
-printf '%s\n' "[2/5] Building only the LaserJet 1020 raster filter..."
+printf '%s\n' "[2/5] Building the LaserJet 1020 raster filter and IOKit USB backend..."
 "$CLANG" -o "$BUILD_DIR/$FILTER_NAME" \
-    -isysroot "$SDKROOT" \
-    "$SOURCE_DIR/rastertozjs.c" \
-    "$FOO2ZJS_DIR/jbig.c" "$FOO2ZJS_DIR/jbig_ar.c" \
-    -I"$FOO2ZJS_DIR" -lcups -lcupsimage -Wall -O2
+ -isysroot "$SDKROOT" \
+ "$SOURCE_DIR/rastertozjs.c" \
+ "$FOO2ZJS_DIR/jbig.c" "$FOO2ZJS_DIR/jbig_ar.c" \
+ -I"$FOO2ZJS_DIR" -lcups -lcupsimage -Wall -O2
 
 /usr/bin/file "$BUILD_DIR/$FILTER_NAME" | /usr/bin/grep -q 'arm64' \
-    || fail "The compiled filter is not an arm64 binary."
+ || fail "The compiled filter is not an arm64 binary."
+
+"$CLANG" -o "$BUILD_DIR/$BACKEND_NAME" \
+ -isysroot "$SDKROOT" \
+ "$PROJECT_DIR/backend/hp1020x.c" \
+ -framework IOKit -framework CoreFoundation \
+ -Wall -O2 -Wno-deprecated-declarations
+
+/usr/bin/file "$BUILD_DIR/$BACKEND_NAME" | /usr/bin/grep -q 'arm64' \
+ || fail "The compiled USB backend is not an arm64 binary."
+/usr/bin/otool -L "$BUILD_DIR/$BACKEND_NAME" | /usr/bin/grep -qi 'libusb\|Python' \
+ && fail "USB backend picked up an unexpected dependency."
 
 printf '%s\n' "[3/5] Preparing and validating the firmware and corrected PPD..."
 "$CLANG" -o "$BUILD_DIR/arm2hpdl" \
@@ -131,22 +145,26 @@ if ! /usr/bin/cupstestppd -I filters -W none "$BUILD_DIR/$INSTALLED_PPD" >"$PPD_
 fi
 
 /usr/bin/codesign --force --sign - "$BUILD_DIR/$FILTER_NAME"
+/usr/bin/codesign --force --sign - "$BUILD_DIR/$BACKEND_NAME"
 
 if [ "$MODE" = "stage" ]; then
-    printf '%s\n' "[4/5] Staging the standalone driver artifacts..."
-    mkdir -p \
-        "$STAGE_DIR/usr/libexec/cups/filter" \
-        "$STAGE_DIR/Library/Printers/PPDs/Contents/Resources" \
-        "$STAGE_DIR/usr/local/share/foo2zjs/firmware"
-    cp "$BUILD_DIR/$FILTER_NAME" "$STAGE_DIR/usr/libexec/cups/filter/$FILTER_NAME"
-    cp "$BUILD_DIR/$INSTALLED_PPD" "$STAGE_DIR/Library/Printers/PPDs/Contents/Resources/$INSTALLED_PPD"
-    cp "$BUILD_DIR/sihp1020.dl" "$STAGE_DIR/usr/local/share/foo2zjs/firmware/sihp1020.dl"
-    printf '%s\n' "[5/5] Standalone staging completed without system changes."
-    exit 0
+ printf '%s\n' "[4/5] Staging the standalone driver artifacts..."
+ mkdir -p \
+ "$STAGE_DIR/usr/libexec/cups/filter" \
+ "$STAGE_DIR/usr/libexec/cups/backend" \
+ "$STAGE_DIR/Library/Printers/PPDs/Contents/Resources" \
+ "$STAGE_DIR/usr/local/share/foo2zjs/firmware"
+ cp "$BUILD_DIR/$FILTER_NAME" "$STAGE_DIR/usr/libexec/cups/filter/$FILTER_NAME"
+ cp "$BUILD_DIR/$BACKEND_NAME" "$STAGE_DIR/usr/libexec/cups/backend/$BACKEND_NAME"
+ cp "$BUILD_DIR/$INSTALLED_PPD" "$STAGE_DIR/Library/Printers/PPDs/Contents/Resources/$INSTALLED_PPD"
+ cp "$BUILD_DIR/sihp1020.dl" "$STAGE_DIR/usr/local/share/foo2zjs/firmware/sihp1020.dl"
+ printf '%s\n' "[5/5] Standalone staging completed without system changes."
+ exit 0
 fi
 
-printf '%s\n' "[4/5] Installing the three driver files with administrator access..."
+printf '%s\n' "[4/5] Installing the driver files with administrator access..."
 printf '%s\n' "  $FILTER_DIR/$FILTER_NAME"
+printf '%s\n' "  $BACKEND_DIR/$BACKEND_NAME"
 printf '%s\n' "  $PPD_DIR/$INSTALLED_PPD"
 printf '%s\n' "  $FIRMWARE_DIR/sihp1020.dl"
 sudo -v
@@ -168,15 +186,24 @@ backup_existing() {
 }
 
 backup_existing "$FILTER_DIR/$FILTER_NAME" "$FILTER_NAME"
+backup_existing "$BACKEND_DIR/$BACKEND_NAME" "$BACKEND_NAME"
 backup_existing "$PPD_DIR/$INSTALLED_PPD" "$INSTALLED_PPD"
 backup_existing "$FIRMWARE_DIR/sihp1020.dl" "sihp1020.dl"
 backup_existing "/etc/cups/ppd/$QUEUE_NAME.ppd" "$QUEUE_NAME-active.ppd"
 
-sudo mkdir -p "$FILTER_DIR" "$PPD_DIR" "$FIRMWARE_DIR"
+PRINTER_RES_DIR="/Library/Printers/hp/laserjet/hp1020"
+
+sudo mkdir -p "$FILTER_DIR" "$BACKEND_DIR" "$PPD_DIR" "$FIRMWARE_DIR" "$PRINTER_RES_DIR"
 sudo cp "$BUILD_DIR/$FILTER_NAME" "$FILTER_DIR/$FILTER_NAME"
 sudo chown root:wheel "$FILTER_DIR/$FILTER_NAME"
 sudo chmod 755 "$FILTER_DIR/$FILTER_NAME"
 sudo codesign --force --sign - "$FILTER_DIR/$FILTER_NAME"
+
+# CUPS only runs 0700 root-owned backends as root — required to Seize USB.
+sudo cp "$BUILD_DIR/$BACKEND_NAME" "$BACKEND_DIR/$BACKEND_NAME"
+sudo chown root:wheel "$BACKEND_DIR/$BACKEND_NAME"
+sudo chmod 700 "$BACKEND_DIR/$BACKEND_NAME"
+sudo codesign --force --sign - "$BACKEND_DIR/$BACKEND_NAME"
 
 sudo cp "$BUILD_DIR/$INSTALLED_PPD" "$PPD_DIR/$INSTALLED_PPD"
 sudo chown root:wheel "$PPD_DIR/$INSTALLED_PPD"
@@ -185,36 +212,38 @@ sudo chmod 644 "$PPD_DIR/$INSTALLED_PPD"
 sudo cp "$BUILD_DIR/sihp1020.dl" "$FIRMWARE_DIR/sihp1020.dl"
 sudo chown root:wheel "$FIRMWARE_DIR/sihp1020.dl"
 sudo chmod 644 "$FIRMWARE_DIR/sihp1020.dl"
+# Duplicate for the CUPS backend sandbox (Apple keeps printer resources here).
+sudo cp "$BUILD_DIR/sihp1020.dl" "$PRINTER_RES_DIR/sihp1020.dl"
+sudo chown root:wheel "$PRINTER_RES_DIR/sihp1020.dl"
+sudo chmod 644 "$PRINTER_RES_DIR/sihp1020.dl"
 
+# Always use the native IOKit backend. The stock macOS usb backend often
+# reports this host-based printer as permanently "offline".
 device_uri=$DEFAULT_DEVICE_URI
-existing_uri=$(/usr/bin/lpstat -v "$QUEUE_NAME" 2>/dev/null | /usr/bin/sed -n "s/^device for $QUEUE_NAME: //p" | /usr/bin/head -n 1 || true)
-if [ -n "$existing_uri" ]; then
-    device_uri=$existing_uri
-else
-    usb_serial=$(/usr/sbin/ioreg -p IOUSB -l -w0 | /usr/bin/awk -F '"' '
-        /"USB Product Name" = "HP LaserJet 1020"/ { found = 1; next }
-        found && /"USB Serial Number" =/ { print $4; exit }
-    ')
-    if [ -n "$usb_serial" ]; then
-        device_uri="$DEFAULT_DEVICE_URI?serial=$usb_serial"
-    fi
-fi
 
 sudo /usr/sbin/lpadmin \
-    -p "$QUEUE_NAME" \
-    -v "$device_uri" \
-    -P "$PPD_DIR/$INSTALLED_PPD" \
-    -o PageSize=A4 \
-    -o Resolution=600x600dpi \
-    -E
+ -p "$QUEUE_NAME" \
+ -v "$device_uri" \
+ -P "$PPD_DIR/$INSTALLED_PPD" \
+ -o PageSize=A4 \
+ -o Resolution=600x600dpi \
+ -o printer-is-shared=false \
+ -D "HP LaserJet 1020" \
+ -L "USB (native ZJS)" \
+ -E
 sudo /usr/sbin/cupsenable "$QUEUE_NAME"
 sudo /usr/sbin/cupsaccept "$QUEUE_NAME"
 
-printf '%s\n' "[5/5] Uploading firmware once for the current printer power cycle..."
-/usr/bin/lp -d "$QUEUE_NAME" -o raw "$FIRMWARE_DIR/sihp1020.dl" >/dev/null
+printf '%s\n' "[5/5] Uploading firmware for the current printer power cycle..."
+# The IOKit backend prepends firmware on the first job after a USB reconnect.
+# Send it once now so the printer is ready immediately.
+sudo "$BACKEND_DIR/$BACKEND_NAME" "$FIRMWARE_DIR/sihp1020.dl" || \
+ fail "Firmware upload failed. Is the printer powered on and connected over USB?"
 
-printf '\n%s\n' "LaserJet 1020 driver, corrected PPD, queue, and firmware are ready."
+printf '\n%s\n' "LaserJet 1020 native driver, IOKit USB backend, PPD, and firmware are ready."
 if [ "$BACKUP_CREATED" -eq 1 ]; then
-    printf '%s\n' "Previous files were backed up in: $BACKUP_DIR"
+ printf '%s\n' "Previous files were backed up in: $BACKUP_DIR"
 fi
-printf '%s\n' "No background task, network service, or macOS security setting was added."
+printf '%s\n' "Print from any app with Cmd-P to 'HP LaserJet 1020'."
+printf '%s\n' "Quick test: lp -d HP_LaserJet_1020 /etc/hosts"
+printf '%s\n' "USB map: sudo /usr/libexec/cups/backend/hp1020x probe"

@@ -104,7 +104,7 @@
 *OpenUI *PageSize/Page Size: PickOne
 *FoomaticRIPOption PageSize: enum CmdLine A
 *OrderDependency: 135 AnySetup *PageSize
-*DefaultPageSize: Letter
+*DefaultPageSize: A4
 *PageSize Letter/Letter: "%% FoomaticRIPOptionSetting: PageSize=Letter"
 *FoomaticRIPOptionSetting PageSize=Letter: "-p1 "
 *PageSize A4/A4: "%% FoomaticRIPOptionSetting: PageSize=A4"
@@ -143,7 +143,7 @@
 
 *OpenUI *PageRegion: PickOne
 *OrderDependency: 135 AnySetup *PageRegion
-*DefaultPageRegion: Letter
+*DefaultPageRegion: A4
 *PageRegion Letter/Letter: "%% FoomaticRIPOptionSetting: PageSize=Letter"
 *PageRegion A4/A4: "%% FoomaticRIPOptionSetting: PageSize=A4"
 *PageRegion A5/A5: "%% FoomaticRIPOptionSetting: PageSize=A5"
@@ -163,7 +163,7 @@
 *PageRegion w558h774/16k 197x273 mm: "%% FoomaticRIPOptionSetting: PageSize=w558h774"
 *CloseUI: *PageRegion
 
-*DefaultImageableArea: Letter
+*DefaultImageableArea: A4
 *ImageableArea Letter/Letter: "11.34 11.34 600.66 780.66"
 *ImageableArea A4/A4: "11.34 11.34 583.66 830.66"
 *ImageableArea A5/A5: "11.34 11.34 408.66 583.66"
@@ -182,7 +182,7 @@
 *ImageableArea Postcard/Postcard: "11.34 11.34 271.66 404.66"
 *ImageableArea w558h774/16k 197x273 mm: "11.34 11.34 546.66 762.66"
 
-*DefaultPaperDimension: Letter
+*DefaultPaperDimension: A4
 *PaperDimension Letter/Letter: "612 792"
 *PaperDimension A4/A4: "595 842"
 *PaperDimension A5/A5: "420 595"
