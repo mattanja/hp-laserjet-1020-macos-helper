@@ -79,13 +79,15 @@ If the download changes or is corrupted, setup stops before requesting administr
 
 After install, `hp1020x` uploads that firmware again when the USB session changes (printer power cycle). USB map: `sudo /usr/libexec/cups/backend/hp1020x probe`.
 
-## Android / Mopria / HP Print Service
+## AirPrint / Android / Mopria
 
-macOS Printer Sharing advertises `_ipps._tcp` with `TLS=1.2`, but CUPS's certificate is self-signed for the Mac's router hostname, not `*.local`. Android then fails the TLS handshake.
+macOS Printer Sharing advertises `_ipps._tcp` with `TLS=1.2`, but CUPS's certificate is self-signed for the Mac's router hostname, not `*.local`. Mobile clients then fail TLS or drop the printer after selecting it.
 
-Setup turns off CUPS's own Bonjour ads and registers a plaintext IPP service (`HP LaserJet 1020._ipp._tcp`) with `mopria-certified=1.3` and AirPrint `URF` keys. IPP itself stays on port 631 (`Allow @LOCAL`).
+Setup turns off CUPS's own Bonjour ads and registers a plaintext IPP + `_universal` service (`HP LaserJet 1020`) with AirPrint (`URF`, `UUID`, `kind`) and Mopria (`mopria-certified=1.3`) TXT keys. IPP stays on port 631 (`Allow @LOCAL`).
 
-On the phone, prefer **Mopria Print Service** (or Android's built-in default print service) on the same Wi-Fi as the Mac. HP Print Service often probes HP printers over SNMP, which CUPS does not answer. Manual URL if needed: `ipp://<mac-hostname>.local:631/printers/HP_LaserJet_1020`.
+- **iPhone / iPad:** same Wi-Fi as the Mac. In the print dialog choose **HP LaserJet 1020** (not another HP on the LAN). If it still flips to “No Printer Selected”, toggle Wi-Fi or reopen the dialog once so Bonjour refreshes.
+- **Android:** prefer **Mopria Print Service** (or the built-in default print service). HP Print Service often probes SNMP, which CUPS does not answer.
+- Manual URL: `ipp://<mac-hostname>.local:631/printers/HP_LaserJet_1020`.
 
 ## Resolution correction
 
